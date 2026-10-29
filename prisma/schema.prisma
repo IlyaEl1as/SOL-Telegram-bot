@@ -1,0 +1,43 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// One row per Telegram user. Each user gets a freshly generated Solana
+// keypair. Private key + mnemonic are stored in PLAINTEXT here on purpose
+// for local devnet/testing visibility — see README "Security notes" for
+// why this must NOT be done with a mainnet DB holding real funds.
+model User {
+  id            Int      @id @default(autoincrement())
+  telegramId    BigInt   @unique
+  publicKey     String
+  privateKey    String // base58-encoded secret key, PLAINTEXT
+  mnemonic      String // 12-word BIP39 seed phrase, PLAINTEXT
+
+  slippageBps   Int      @default(1000)
+  language      String   @default("en") // "en" | "ru" — see src/i18n/
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  transactions Transaction[]
+}
+
+// Optional audit log of swaps — useful for debugging and for showing the
+// user their trade history.
+model Transaction {
+  id          Int      @id @default(autoincrement())
+  user        User     @relation(fields: [userId], references: [id])
+  userId      Int
+  signature   String
+  side        String // "buy" | "sell"
+  inputMint   String
+  outputMint  String
+  inAmount    String
+  outAmount   String
+  status      String // "pending" | "confirmed" | "failed"
+  createdAt   DateTime @default(now())
+}
